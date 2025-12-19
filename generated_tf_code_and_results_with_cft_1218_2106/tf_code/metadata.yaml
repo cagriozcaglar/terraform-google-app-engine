@@ -1,0 +1,352 @@
+#
+# Copyright 2024 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+apiVersion: blueprints.cloud.google.com/v1alpha1
+kind: TerraformBlueprint
+metadata:
+  name: terraform-google-app-engine
+  source:
+    sourceType: git
+    location: https://github.com/GoogleCloudPlatform/terraform-google-app-engine.git
+  version: 1.0.0
+  actuationTool:
+    flavor: terraform
+    version: ">= 1.0"
+  title: Google Cloud App Engine Module
+  description:
+    tagline: Deploy and manage applications on Google App Engine.
+    detailed: This module handles the deployment of applications to Google App Engine, supporting both Standard and Flexible environments. It automates the creation of the App Engine application, deployment of new versions, and configuration of traffic splitting.
+  examples:
+    - name: simple_standard_app
+      location: examples/simple_standard_app
+      title: Simple Standard App Engine Deployment
+      description: Deploys a basic web application to the App Engine Standard environment.
+  labels:
+    gcp: ""
+    app-engine: ""
+    serverless: ""
+spec:
+  terraform:
+    version: ">= 1.0"
+    requiredProviders:
+      google:
+        source: hashicorp/google
+        version: ">= 4.50.0"
+  interfaces:
+    variables:
+      - name: project_id
+        description: The ID of the Google Cloud project where App Engine resources will be created.
+        type: string
+        default: null
+        required: false
+      - name: location_id
+        description: The location to serve the App Engine application from. This is a one-time-per-project setting.
+        type: string
+        default: null
+        required: false
+      - name: service_name
+        description: The name of the App Engine service. The default service is named 'default'.
+        type: string
+        default: "default"
+        required: false
+      - name: version_id
+        description: A unique identifier for the version of the service being deployed. If not provided, a value will be generated.
+        type: string
+        default: null
+        required: false
+      - name: create_app
+        description: If true, creates the `google_app_engine_application` resource. Should be true for the first deployment to a project, and can be false for subsequent deployments.
+        type: bool
+        default: true
+        required: false
+      - name: auth_domain
+        description: The domain to authenticate users with using Google Accounts. Only applicable when creating the application.
+        type: string
+        default: null
+        required: false
+      - name: iap_config
+        description: Identity-Aware Proxy configuration for the App Engine application. Only applicable when creating the application.
+        type: object({
+          enabled              = bool
+          oauth2_client_id     = string
+          oauth2_client_secret = string
+        })
+        default: null
+        required: false
+      - name: environment_type
+        description: The environment for the App Engine version. Must be 'standard' or 'flexible'.
+        type: string
+        default: "standard"
+        required: false
+      - name: runtime
+        description: The runtime environment for the App Engine version (e.g., 'python311', 'nodejs18', 'custom' for flexible environment).
+        type: string
+        default: null
+        required: false
+      - name: deployment
+        description: Deployment source configuration. For 'standard' environment, use 'zip'. For 'flexible' environment, use 'container'.
+        type: object({
+          zip = optional(object({
+            source_url = string
+          }))
+          container = optional(object({
+            image = string
+          }))
+        })
+        default: null
+        required: false
+      - name: env_variables
+        description: A map of environment variables to set for the App Engine version.
+        type: map(string)
+        default: {}
+        required: false
+      - name: service_account
+        description: The service account to be used by the App Engine version. If not specified, the project's default App Engine service account is used. It is recommended to create a dedicated service account with the least privileges necessary.
+        type: string
+        default: null
+        required: false
+      - name: noop_on_destroy
+        description: If set to true, the App Engine version will not be deleted when the resource is destroyed. This is useful for retaining old versions.
+        type: bool
+        default: false
+        required: false
+      - name: promote
+        description: If set to true, the newly deployed version will automatically receive 100% of traffic. This behavior is overridden if `traffic_split` is specified. If false, traffic will not be migrated to the new version, requiring a manual traffic allocation.
+        type: bool
+        default: true
+        required: false
+      - name: inbound_services
+        description: A list of inbound services that are allowed to connect to this version. (e.g., 'INBOUND_SERVICE_MAIL', 'INBOUND_SERVICE_WARMUP'). Only for standard environment.
+        type: list(string)
+        default: null
+        required: false
+      - name: instance_class
+        description: The instance class to use for the standard environment (e.g., 'F1', 'B2').
+        type: string
+        default: null
+        required: false
+      - name: entrypoint
+        description: The entrypoint for the application, which specifies the command to start the app. Only for standard environment.
+        type: object({
+          shell = string
+        })
+        default: null
+        required: false
+      - name: standard_automatic_scaling
+        description: Configuration for automatic scaling in the standard environment.
+        type: object({
+          min_idle_instances          = optional(number)
+          max_idle_instances          = optional(number)
+          min_pending_latency         = optional(string)
+          max_pending_latency         = optional(string)
+          max_concurrent_requests     = optional(number)
+          standard_scheduler_settings = optional(object({
+            min_instances                 = optional(number)
+            max_instances                 = optional(number)
+            target_cpu_utilization        = optional(number)
+            target_throughput_utilization = optional(number)
+          }))
+        })
+        default: null
+        required: false
+      - name: standard_basic_scaling
+        description: Configuration for basic scaling in the standard environment.
+        type: object({
+          max_instances = number
+          idle_timeout  = optional(string)
+        })
+        default: null
+        required: false
+      - name: standard_manual_scaling
+        description: Configuration for manual scaling in the standard environment.
+        type: object({
+          instances = number
+        })
+        default: null
+        required: false
+      - name: flexible_automatic_scaling
+        description: Configuration for automatic scaling in the flexible environment. One of `flexible_automatic_scaling` or `flexible_manual_scaling` must be specified for flexible environment.
+        type: object({
+          cool_down_period = optional(string)
+          cpu_utilization = object({
+            target_utilization = number
+          })
+          max_total_instances     = optional(number)
+          min_total_instances     = optional(number)
+          max_concurrent_requests = optional(number)
+          max_pending_latency     = optional(string)
+          min_pending_latency     = optional(string)
+          request_utilization = optional(object({
+            target_request_count_per_second = optional(number)
+            target_concurrent_requests      = optional(number)
+          }))
+          disk_utilization = optional(object({
+            target_write_bytes_per_second = optional(number)
+            target_write_ops_per_second   = optional(number)
+            target_read_bytes_per_second  = optional(number)
+            target_read_ops_per_second    = optional(number)
+          }))
+          network_utilization = optional(object({
+            target_sent_bytes_per_second       = optional(number)
+            target_sent_packets_per_second     = optional(number)
+            target_received_bytes_per_second   = optional(number)
+            target_received_packets_per_second = optional(number)
+          }))
+        })
+        default: null
+        required: false
+      - name: flexible_manual_scaling
+        description: Configuration for manual scaling in the flexible environment. One of `flexible_automatic_scaling` or `flexible_manual_scaling` must be specified for flexible environment.
+        type: object({
+          instances = number
+        })
+        default: null
+        required: false
+      - name: liveness_check
+        description: Health check configuration to detect whether an instance is running. Only for flexible environment.
+        type: object({
+          path              = string
+          check_interval    = optional(string)
+          timeout           = optional(string)
+          failure_threshold = optional(number)
+          success_threshold = optional(number)
+          host              = optional(string)
+          initial_delay     = optional(string)
+        })
+        default: null
+        required: false
+      - name: readiness_check
+        description: Health check configuration to detect whether an instance is ready to serve traffic. Only for flexible environment.
+        type: object({
+          path              = string
+          check_interval    = optional(string)
+          timeout           = optional(string)
+          failure_threshold = optional(number)
+          success_threshold = optional(number)
+          host              = optional(string)
+          app_start_timeout = optional(string)
+        })
+        default: null
+        required: false
+      - name: resources
+        description: Machine resource configuration for the flexible environment.
+        type: object({
+          cpu       = number
+          memory_gb = number
+          disk_gb   = optional(number)
+          volumes = optional(list(object({
+            name        = string
+            volume_type = string
+            size_gb     = number
+          })))
+        })
+        default: null
+        required: false
+      - name: network
+        description: Network configuration for the flexible environment.
+        type: object({
+          forwarded_ports  = optional(list(string))
+          instance_tag     = optional(string)
+          name             = string
+          subnetwork       = optional(string)
+          session_affinity = optional(bool)
+        })
+        default: null
+        required: false
+      - name: traffic_split
+        description: Configuration for splitting traffic between different versions of a service.
+        type: object({
+          shard_by    = string
+          allocations = map(number)
+        })
+        default: null
+        required: false
+    variableGroups:
+      - name: General Configuration
+        description: Basic project and service identification.
+        variables:
+          - project_id
+          - location_id
+          - service_name
+          - version_id
+      - name: Application Setup
+        description: One-time configuration for the App Engine application.
+        variables:
+          - create_app
+          - auth_domain
+          - iap_config
+      - name: Deployment & Runtime
+        description: Configuration for the specific version being deployed.
+        variables:
+          - environment_type
+          - runtime
+          - deployment
+          - env_variables
+          - service_account
+          - noop_on_destroy
+      - name: Traffic Management
+        description: Controls how traffic is routed to the new version.
+        variables:
+          - promote
+          - traffic_split
+      - name: Standard Environment Configuration
+        description: Settings specific to the App Engine Standard environment.
+        variables:
+          - inbound_services
+          - instance_class
+          - entrypoint
+          - standard_automatic_scaling
+          - standard_basic_scaling
+          - standard_manual_scaling
+      - name: Flexible Environment Configuration
+        description: Settings specific to the App Engine Flexible environment.
+        variables:
+          - liveness_check
+          - readiness_check
+          - resources
+          - network
+          - flexible_automatic_scaling
+          - flexible_manual_scaling
+    outputs:
+      - name: app_engine_application_id
+        description: The unique ID of the App Engine application.
+      - name: app_engine_application_url
+        description: The default URL to access the App Engine application.
+      - name: service
+        description: The name of the App Engine service where the version was deployed.
+      - name: version_id
+        description: The unique identifier for the deployed version.
+      - name: version_name
+        description: The full name of the deployed App Engine version.
+  requirements:
+    roles:
+      - level: project
+        role: roles/appengine.appAdmin
+        description: Required to create the App Engine application and deploy versions.
+      - level: project
+        role: roles/cloudbuild.builds.editor
+        description: Required for the underlying Cloud Build process used by App Engine deployment.
+      - level: project
+        role: roles/storage.objectAdmin
+        description: Required for Cloud Build to store source code and container images.
+      - level: project
+        role: roles/iam.serviceAccountUser
+        description: Required for the deploying principal to act as the App Engine version's service account.
+    services:
+      - appengine.googleapis.com
+      - cloudbuild.googleapis.com
+      - compute.googleapis.com
+      - iap.googleapis.com
+      - iam.googleapis.com
