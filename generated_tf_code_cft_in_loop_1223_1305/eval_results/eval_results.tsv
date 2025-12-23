@@ -1,0 +1,3 @@
+TF validate result: Result: VALID
+TF plan result: Result: PLAN_SUCCESSFUL
+CFT lint result: FAIL: exit status 1 (stdout: Error parsing metadata file: yaml: line 78: mapping values are not allowed in this context) (stderr: )
