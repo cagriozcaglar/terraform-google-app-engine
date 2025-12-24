@@ -1,0 +1,209 @@
+# KRM-style metadata for a Terraform blueprint.
+# For more information, see https://docs.google.com/document/d/1uMhNixV5RsH3s21pniLZpQDkSLS2cABh2lo1fkq2hMY/edit
+apiVersion: blueprints.cloud.google.com/v1alpha1
+kind: TerraformBlueprint
+metadata:
+  name: terraform-google-app-engine-standard
+  source:
+    # A link to the source repository.
+    repo: https://github.com/GoogleCloudPlatform/terraform-google-app-engine-standard.git
+    # The sub-directory of the repo containing this blueprint.
+    sourceType: git
+spec:
+  # General information about the blueprint.
+  info:
+    # A human-readable title for the blueprint.
+    title: App Engine Standard Environment
+    # The current version of the blueprint.
+    version: 1.0.0
+    # The tool used to actuate the blueprint.
+    actuationTool:
+      # The flavor of the actuation tool.
+      flavor: terraform
+      # The version of the actuation tool.
+      version: ">= 1.0"
+    # A short and long description of the blueprint.
+    description:
+      # A one-sentence summary of the blueprint.
+      tagline: Deploys a service to a Google App Engine Standard environment.
+      # A more detailed description of the blueprint.
+      detailed: This module handles the deployment of a standard service to Google App Engine, including the application, version, scaling configuration, and traffic splitting.
+    # A list of example blueprints.
+    examples:
+      - name: simple_example
+        location: examples/simple_example
+    # Links to official documentation.
+    documentation:
+      - title: "App Engine Documentation"
+        url: "https://cloud.google.com/appengine/docs"
+  # Defines the input variables and output values of the blueprint.
+  interface:
+    # A list of input variables for the blueprint.
+    variables:
+      - name: project_id
+        description: The ID of the Google Cloud project where the App Engine application will be created and deployed.
+        type: string
+        required: true
+      - name: location_id
+        description: "The location to serve the App Engine application from. See https://cloud.google.com/appengine/docs/locations."
+        type: string
+        required: true
+      - name: deployment_zip_source_url
+        description: The Google Cloud Storage URL of the zip file containing the application source code.
+        type: string
+        required: true
+      - name: create_app
+        description: A boolean flag to control the creation of the `google_app_engine_application` resource. Set to `false` if an App Engine application already exists in the project.
+        type: bool
+        required: false
+        default: true
+      - name: database_type
+        description: "The type of database to use with App Engine. Can be 'CLOUD_FIRESTORE' or 'CLOUD_DATASTORE_COMPATIBILITY'."
+        type: string
+        required: false
+        default: null
+      - name: auth_domain
+        description: The domain to authenticate users with when using Google Accounts API.
+        type: string
+        required: false
+        default: null
+      - name: service_name
+        description: "The name of the App Engine service to deploy. The 'default' service is created if not specified."
+        type: string
+        required: false
+        default: "default"
+      - name: version_id
+        description: A unique identifier for the version of the service.
+        type: string
+        required: false
+        default: "v1"
+      - name: runtime
+        description: "The runtime environment for the application, e.g., 'python311', 'go119', 'nodejs18'."
+        type: string
+        required: false
+        default: "python311"
+      - name: entrypoint_shell
+        description: The shell command to execute to start the application.
+        type: string
+        required: false
+        default: "gunicorn -b :$PORT main:app"
+      - name: env_variables
+        description: A map of environment variables to be made available to the application.
+        type: map(string)
+        required: false
+        default: {}
+      - name: inbound_services
+        description: "A list of inbound services that can send traffic to this version. If empty or null, all traffic is allowed. See https://cloud.google.com/appengine/docs/standard/go/config/appref for valid values."
+        type: list(string)
+        required: false
+        default: null
+      - name: instance_class
+        description: "The instance class to use for this version. See https://cloud.google.com/appengine/docs/standard#instance_classes for valid values."
+        type: string
+        required: false
+        default: "F1"
+      - name: scaling_type
+        description: "The type of scaling to use for this version. Must be one of 'automatic', 'basic', or 'manual'."
+        type: string
+        required: false
+        default: "automatic"
+      - name: automatic_scaling
+        description: Configuration for automatic scaling. Used when `scaling_type` is 'automatic'. See `google_app_engine_standard_app_version` resource for available fields.
+        type: object
+        required: false
+        default:
+          min_idle_instances: 1
+          max_idle_instances: 3
+          max_instances: 10
+          max_pending_latency: "30ms"
+      - name: basic_scaling
+        description: Configuration for basic scaling. Used when `scaling_type` is 'basic'. See `google_app_engine_standard_app_version` resource for available fields.
+        type: object
+        required: false
+        default: null
+      - name: manual_scaling
+        description: Configuration for manual scaling. Used when `scaling_type` is 'manual'. See `google_app_engine_standard_app_version` resource for available fields.
+        type: object
+        required: false
+        default: null
+      - name: delete_service_on_destroy
+        description: If set to true, the service will be deleted when the last version is deleted.
+        type: bool
+        required: false
+        default: false
+      - name: noop_on_destroy
+        description: If set to true, Terraform will not delete the version on destroy, but will remove it from the state.
+        type: bool
+        required: false
+        default: false
+      - name: traffic_split
+        description: "A map defining the traffic split for the service. If set, a `google_app_engine_service_split_traffic` resource will be created. Example: `{ allocations = { \"v1\" = 0.9, \"v2-canary\" = 0.1 }, shard_by = \"IP\" }`."
+        type: object
+        required: false
+        default: null
+    # A list of variable groups for organizing the inputs.
+    variableGroups:
+      - name: Required Settings
+        description: Core settings required to deploy the App Engine service.
+        variables:
+          - project_id
+          - location_id
+          - deployment_zip_source_url
+      - name: App Engine Application Settings
+        description: Settings for the App Engine application itself (one per project).
+        variables:
+          - create_app
+          - database_type
+          - auth_domain
+      - name: Service & Version Settings
+        description: Configuration for the specific service version being deployed.
+        variables:
+          - service_name
+          - version_id
+          - runtime
+          - entrypoint_shell
+          - env_variables
+          - inbound_services
+          - instance_class
+      - name: Scaling Configuration
+        description: Defines how the service will scale based on traffic.
+        variables:
+          - scaling_type
+          - automatic_scaling
+          - basic_scaling
+          - manual_scaling
+      - name: Deployment Lifecycle
+        description: Controls the behavior of the service during Terraform destroy operations.
+        variables:
+          - delete_service_on_destroy
+          - noop_on_destroy
+      - name: Traffic Management
+        description: Settings for splitting traffic between different versions.
+        variables:
+          - traffic_split
+    # A list of the outputs of the blueprint.
+    outputs:
+      - name: app_engine_application_id
+        description: The unique ID of the App Engine application.
+      - name: app_engine_application_url
+        description: The default URL of the App Engine application.
+      - name: service_name
+        description: The name of the deployed App Engine service.
+      - name: version_id
+        description: The ID of the deployed App Engine version.
+      - name: version_name
+        description: The full resource name of the deployed App Engine version.
+  # Specifies the requirements for deploying the blueprint.
+  requirements:
+    # A list of GCP APIs that must be enabled.
+    services:
+      - appengine.googleapis.com
+      - storage.googleapis.com
+      - cloudbuild.googleapis.com
+    # A list of IAM roles required for the service account to deploy the blueprint.
+    roles:
+      - level: project
+        roles:
+          - roles/appengine.appAdmin
+          - roles/storage.admin
+          - roles/iam.serviceAccountUser
