@@ -1,0 +1,11 @@
+ERR: terraform plan failed: exit status 1
+stderr:
+
+Error: Invalid dynamic for_each value
+
+  on main.tf line 290, in resource "google_app_engine_application" "app":
+ 290:     for_each = var.iap != null ? [var.iap] : []
+
+Cannot use a list of object value in for_each. An iterable collection is
+required.
+
