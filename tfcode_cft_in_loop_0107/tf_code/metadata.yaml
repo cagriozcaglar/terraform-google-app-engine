@@ -1,0 +1,258 @@
+apiVersion: blueprints.cloud.google.com/v1alpha1
+kind: TerraformBlueprint
+metadata:
+  name: terraform-google-app-engine
+  source:
+    type: git
+    git:
+      repo: https://github.com/GoogleCloudPlatform/terraform-google-app-engine.git
+      # The directory in the repository containing the blueprint.
+      # dir: /
+  version: 1.0.0 # Placeholder version
+  actuationTool:
+    type: Terraform
+    versions:
+    - ">= 1.2.0"
+  title: Google Cloud App Engine Module
+  descriptions:
+    tagline: Terraform module for deploying applications to Google Cloud App Engine.
+    detailed: This module handles the deployment of applications to Google Cloud
+      App Engine, supporting both Standard and Flexible environments. It manages
+      the App Engine application resource, deploys new versions from source, configures
+      scaling, and handles traffic splitting.
+  examples:
+  - name: simple_standard_app
+    location: examples/simple_standard_app
+    title: Simple Standard App Engine Application
+  - name: flexible_app_with_scaling
+    location: examples/flexible_app_with_scaling
+    title: Flexible App Engine Application with Autoscaling
+  labels:
+    gcp: ""
+    app-engine: ""
+    serverless: ""
+spec:
+  terraformSpec:
+    variables:
+    - name: project_id
+      description: The ID of the project in which the resource belongs.
+      type: string
+      required: true
+    - name: location_id
+      description: The location to deploy the App Engine application.
+      type: string
+      required: true
+    - name: service_name
+      description: The name of the App Engine service.
+      type: string
+      required: false
+      default: default
+    - name: version_id
+      description: A unique identifier for the version.
+      type: string
+      required: false
+      default: null
+    - name: env_type
+      description: The type of App Engine environment. Must be either 'standard'
+        or 'flexible'.
+      type: string
+      required: false
+      default: null
+    - name: runtime
+      description: The runtime environment for the application. Required for 'standard'
+        env_type. For the flexible environment, this is ignored and 'custom' is used,
+        as only container-based deployments are supported.
+      type: string
+      required: false
+      default: null
+    - name: deployment_source
+      description: Configuration for the deployment source. Specify either 'zip'
+        for Standard or 'container' for Flexible environment.
+      type: object
+      required: false
+      default:
+        zip: null
+        container: null
+    - name: entrypoint
+      description: 'The entrypoint for the application, which is required for non-container
+        deployments in Standard environment. E.g., ''gunicorn -b :$PORT main:app''.'
+      type: object
+      required: false
+      default: null
+    - name: instance_class
+      description: The instance class to use for a Standard environment. If not specified,
+        the default will be used.
+      type: string
+      required: false
+      default: null
+    - name: service_account
+      description: The service account to be used by the application.
+      type: string
+      required: false
+      default: null
+    - name: create_sa_user_role
+      description: If true and a 'service_account' is provided, grants the App Engine
+        service agent 'roles/iam.serviceAccountUser' on the specified service account.
+        This allows the App Engine service to act as the specified service account.
+      type: bool
+      required: false
+      default: true
+    - name: env_variables
+      description: A map of environment variables to set for the application.
+      type: map(string)
+      required: false
+      default: {}
+    - name: automatic_scaling
+      description: |
+        Configuration for automatic scaling. Leave null to disable.
+        Structure differs for Standard and Flexible environments.
+        For Standard, the structure is:
+        {
+          max_concurrent_requests = number
+          min_idle_instances      = number
+          max_idle_instances      = number
+          min_pending_latency     = string # e.g. "0.5s"
+          max_pending_latency     = string # e.g. "10s"
+          standard_scheduler_settings = {
+            min_instances = number
+            max_instances = number
+          }
+        }
+        For Flexible, the structure is:
+        {
+          min_total_instances = number
+          max_total_instances = number
+          cool_down_period    = string # e.g. "120s"
+          cpu_utilization = {
+            target_utilization = number # e.g. 0.75
+          }
+        }
+      type: any
+      required: false
+      default: null
+    - name: basic_scaling
+      description: Configuration for basic scaling (Standard environment only). Leave
+        null to disable.
+      type: object
+      required: false
+      default: null
+    - name: manual_scaling
+      description: Configuration for manual scaling (Standard environment only).
+        Leave null to disable.
+      type: object
+      required: false
+      default: null
+    - name: network
+      description: Network settings for a Flexible environment. Leave null to use
+        default.
+      type: object
+      required: false
+      default: null
+    - name: health_check
+      description: Health check configuration for a Flexible environment. Contains
+        'liveness_check' and 'readiness_check'.
+      type: object
+      required: false
+      default: null
+    - name: noop_on_destroy
+      description: If set to true, the application version will not be deleted when
+        the resource is destroyed and traffic will not be migrated to it automatically.
+        This is useful for canary deployments.
+      type: bool
+      required: false
+      default: false
+    - name: traffic_split
+      description: A map of version IDs to traffic allocation percentages. The keys
+        are version IDs and values are fractional allocations. The sum of values must
+        be 1.0. If set, creates a traffic split configuration.
+      type: map(number)
+      required: false
+      default: null
+    - name: migrate_traffic
+      description: Whether to migrate traffic gradually. If false, traffic is switched
+        instantly. Only applicable if 'traffic_split' is set.
+      type: bool
+      required: false
+      default: false
+    - name: inbound_services
+      description: A list of inbound services for the application. Can be 'INBOUND_SERVICE_MAIL',
+        'INBOUND_SERVICE_MAIL_BOUNCE', 'INBOUND_SERVICE_XMPP_ERROR', 'INBOUND_SERVICE_XMPP_MESSAGE',
+        'INBOUND_SERVICE_XMPP_SUBSCRIBE', 'INBOUND_SERVICE_XMPP_PRESENCE', 'INBOUND_SERVICE_CHANNEL_PRESENCE',
+        'INBOUND_SERVICE_WARMUP'.
+      type: list(string)
+      required: false
+      default: []
+    - name: delete_service_on_destroy
+      description: If set to true, the service will be deleted when all versions
+        are removed.
+      type: bool
+      required: false
+      default: false
+    - name: database_type
+      description: The type of database to use with App Engine. Can be 'CLOUD_FIRESTORE'
+        or 'CLOUD_DATASTORE_COMPATIBILITY'.
+      type: string
+      required: false
+      default: CLOUD_FIRESTORE
+    variableGroups:
+    - name: Basic Configuration
+      description: Core settings for the App Engine application and service.
+      variables:
+      - project_id
+      - location_id
+      - service_name
+      - version_id
+      - env_type
+      - runtime
+      - database_type
+    - name: Deployment & Runtime
+      description: Configuration for the application source code and runtime environment.
+      variables:
+      - deployment_source
+      - entrypoint
+      - env_variables
+      - service_account
+      - create_sa_user_role
+      - instance_class
+    - name: Scaling
+      description: Define the scaling behavior for the App Engine service.
+      variables:
+      - automatic_scaling
+      - basic_scaling
+      - manual_scaling
+    - name: Flexible Environment Settings
+      description: Settings applicable only to the Flexible environment.
+      variables:
+      - network
+      - health_check
+    - name: Traffic Management
+      description: Configure how traffic is routed to different versions.
+      variables:
+      - traffic_split
+      - migrate_traffic
+    - name: Advanced Settings
+      description: Other advanced and lifecycle settings.
+      variables:
+      - inbound_services
+      - noop_on_destroy
+      - delete_service_on_destroy
+    outputs:
+    - name: app_engine_application_name
+      description: The name of the App Engine application.
+    - name: service_name
+      description: The name of the App Engine service.
+    - name: version_id
+      description: The ID of the deployed App Engine version.
+    - name: version_url
+      description: The URL to access the deployed version.
+  requirements:
+    roles:
+    - level: project
+      roles:
+      - roles/appengine.admin
+      - roles/iam.serviceAccountUser # if service_account is used
+      - roles/iam.serviceAccountAdmin # If create_sa_user_role is true, to grant App Engine SA access to the custom SA
+    services:
+    - appengine.googleapis.com
+    - cloudresourcemanager.googleapis.com
+    - iam.googleapis.com
