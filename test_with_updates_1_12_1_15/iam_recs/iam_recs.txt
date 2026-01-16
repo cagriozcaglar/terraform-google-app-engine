@@ -1,0 +1,38 @@
+{
+  "resourceRoles": [
+    {
+      "resourceName": "projects/gcp-project",
+      "roles": [
+        {
+          "name": "roles/iam.serviceAccountUser",
+          "permissions": [
+            "iam.serviceAccounts.actAs"
+          ]
+        },
+        {
+          "name": "roles/appengine.appCreator",
+          "permissions": [
+            "appengine.applications.create"
+          ]
+        },
+        {
+          "name": "roles/appengine.appViewer",
+          "permissions": [
+            "appengine.applications.get",
+            "appengine.operations.get"
+          ]
+        }
+      ]
+    }
+  ],
+  "[cloud_iam.policy_ai.iampolicyai.IacRolesAdditionalInfo.additional_info]": {
+    "resourceInfos": [
+      {
+        "resourceName": "projects/gcp-project",
+        "createResourceTypes": [
+          "google_app_engine_application"
+        ]
+      }
+    ]
+  }
+}

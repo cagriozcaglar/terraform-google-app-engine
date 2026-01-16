@@ -1,0 +1,104 @@
+# API and Kind for KRM compatibility
+apiVersion: blueprints.cloud.google.com/v1alpha1
+kind: BlueprintMetadata
+# Basic metadata about the blueprint
+metadata:
+  # Machine-readable name of the blueprint
+  name: terraform-google-app-engine-standard
+  # Information about the source repository
+  source:
+    type: git
+    # A placeholder URL for the source repository
+    location: https://github.com/GoogleCloudPlatform/terraform-google-app-engine-standard.git
+  # The release version of the blueprint
+  version: 1.0.0
+  # The tool used to actuate the blueprint and its compatible versions
+  actuationTool:
+    type: Terraform
+    version: ">= 1.0"
+  # Human-readable name of the blueprint
+  title: App Engine Standard Environment
+  # Descriptions of the blueprint
+  description:
+    tagline: A Terraform module to deploy applications to Google App Engine Standard Environment.
+    detailed: >
+      This module handles the creation of a Google App Engine application, deployment of one or more services with different scaling configurations, traffic splitting between versions, and mapping of custom domains.
+
+  # List of examples demonstrating blueprint usage
+  examples:
+    - name: simple_default_service
+      location: examples/simple_default_service
+      title: Simple Default Service
+      description: Deploys a single service named 'default' to App Engine with basic settings.
+  # Links to relevant documentation
+  documentations:
+    - title: README
+      location: README.md
+# Specification for customization, requirements, and interfaces
+spec:
+  # Prerequisites for deploying the blueprint
+  requirements:
+    # GCP APIs that must be enabled
+    services:
+      - appengine.googleapis.com
+    # GCP IAM roles required for the service account
+    roles:
+      - role: roles/appengine.admin
+        level: project
+      - role: roles/storage.objectViewer
+        level: project
+  # Input variables for the blueprint
+  variables:
+    - name: project_id
+      description: The ID of the Google Cloud project where the App Engine application will be created. If not provided, the provider project is used.
+      type: string
+      default: null
+      required: false
+    - name: location_id
+      description: The location to serve the App Engine application from, e.g., `us-central`.
+      type: string
+      default: "us-central"
+      required: false
+    - name: create_app
+      description: If true, the `google_app_engine_application` resource will be created. Set to false if you are importing an existing App Engine application or managing it outside of this module.
+      type: bool
+      default: true
+      required: false
+    - name: database_type
+      description: The type of database to use with the App Engine application. Can be CLOUD_DATASTORE_COMPATIBILITY or CLOUD_FIRESTORE_NATIVE.
+      type: string
+      default: "CLOUD_DATASTORE_COMPATIBILITY"
+      required: false
+    - name: serving_status
+      description: The serving status of the application. Can be SERVING or USER_DISABLED.
+      type: string
+      default: "SERVING"
+      required: false
+    - name: services
+      description: "A map of App Engine services to deploy. The key is the service name (e.g., 'default', 'api'). Each service object defines a single version to be deployed."
+      type: map(object)
+      default: {}
+      required: false
+    - name: domain_mappings
+      description: "A list of custom domain mappings for the App Engine application."
+      type: list(object)
+      default: []
+      required: false
+  # Outputs of the blueprint
+  outputs:
+    - name: app_engine_application
+      description: The full App Engine application resource object. This output is empty if `create_app` is false.
+    - name: services
+      description: A map of the deployed App Engine service versions, keyed by their service name.
+    - name: domain_mappings
+      description: A map of the created domain mappings, keyed by the domain name.
+    - name: app_engine_application_id
+      description: The globally unique identifier for the App Engine application.
+requirements:
+  roles:
+    - level: project
+      role: roles/iam.serviceAccountUser
+    - level: project
+      role: roles/appengine.appCreator
+    - level: project
+      role: roles/appengine.appViewer
